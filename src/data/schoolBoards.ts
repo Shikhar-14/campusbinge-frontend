@@ -1,0 +1,147 @@
+// School boards data organized by priority: Indian National → Indian State → International → Other
+
+export interface SchoolBoard {
+  value: string;
+  label: string;
+  region: string;
+  type: string;
+}
+
+export const TENTH_BOARDS: SchoolBoard[] = [
+  // Indian National Boards (Priority 1)
+  { value: "cbse", label: "Central Board of Secondary Education (CBSE)", region: "India", type: "National" },
+  { value: "icse", label: "Council for the Indian School Certificate Examination (ICSE/CISCE)", region: "India", type: "National" },
+  { value: "nios", label: "National Institute of Open Schooling (NIOS)", region: "India", type: "National" },
+  
+  // Indian State Boards (Priority 2)
+  { value: "andhra-pradesh", label: "Andhra Pradesh Board of Secondary Education", region: "India", type: "State" },
+  { value: "assam", label: "Assam Board of Secondary Education", region: "India", type: "State" },
+  { value: "bihar", label: "Bihar School Examination Board", region: "India", type: "State" },
+  { value: "chhattisgarh", label: "Chhattisgarh Board of Secondary Education", region: "India", type: "State" },
+  { value: "goa", label: "Goa Board of Secondary & Higher Secondary Education", region: "India", type: "State" },
+  { value: "gujarat", label: "Gujarat Secondary Education Board", region: "India", type: "State" },
+  { value: "haryana", label: "Haryana Board of School Education", region: "India", type: "State" },
+  { value: "himachal-pradesh", label: "Himachal Pradesh Board of School Education", region: "India", type: "State" },
+  { value: "jharkhand", label: "Jharkhand Academic Council", region: "India", type: "State" },
+  { value: "karnataka", label: "Karnataka Secondary Education Examination Board", region: "India", type: "State" },
+  { value: "kerala", label: "Kerala Board of Public Examinations", region: "India", type: "State" },
+  { value: "madhya-pradesh", label: "Madhya Pradesh Board of Secondary Education", region: "India", type: "State" },
+  { value: "maharashtra", label: "Maharashtra State Board of Secondary Education", region: "India", type: "State" },
+  { value: "manipur", label: "Manipur Board of Secondary Education", region: "India", type: "State" },
+  { value: "meghalaya", label: "Meghalaya Board of School Education", region: "India", type: "State" },
+  { value: "mizoram", label: "Mizoram Board of School Education", region: "India", type: "State" },
+  { value: "nagaland", label: "Nagaland Board of School Education", region: "India", type: "State" },
+  { value: "odisha", label: "Board of Secondary Education, Odisha", region: "India", type: "State" },
+  { value: "punjab", label: "Punjab School Education Board", region: "India", type: "State" },
+  { value: "rajasthan", label: "Rajasthan Board of Secondary Education", region: "India", type: "State" },
+  { value: "tamil-nadu", label: "Tamil Nadu Board of Secondary Education", region: "India", type: "State" },
+  { value: "tripura", label: "Tripura Board of Secondary Education", region: "India", type: "State" },
+  { value: "uttar-pradesh", label: "Uttar Pradesh Board of High School Education", region: "India", type: "State" },
+  { value: "west-bengal", label: "West Bengal Board of Secondary Education", region: "India", type: "State" },
+  
+  // International Boards (Priority 3)
+  { value: "cambridge-caie", label: "Cambridge Assessment International Education (CAIE)", region: "International", type: "International" },
+  { value: "ib", label: "International Baccalaureate (IB)", region: "International", type: "International" },
+  { value: "edexcel", label: "Edexcel (Pearson)", region: "International", type: "International" },
+  
+  // Other Countries (Priority 4)
+  { value: "uk-aqa", label: "AQA (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-ocr", label: "OCR (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-edexcel", label: "Pearson Edexcel (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-wjec", label: "WJEC (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-ccea", label: "CCEA (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "usa-state", label: "State Boards (USA)", region: "USA", type: "State-level" },
+  { value: "usa-diploma", label: "American High School Diploma Programs", region: "USA", type: "National" },
+  { value: "aus-vcaa", label: "Victorian Curriculum and Assessment Authority (VCAA)", region: "Australia", type: "State" },
+  { value: "aus-nesa", label: "NSW Education Standards Authority (NESA)", region: "Australia", type: "State" },
+  { value: "aus-qcaa", label: "Queensland Curriculum and Assessment Authority (QCAA)", region: "Australia", type: "State" },
+  { value: "aus-saca", label: "South Australian Curriculum, Standards and Accreditation Authority (SACA)", region: "Australia", type: "State" },
+  { value: "aus-taca", label: "Tasmanian Curriculum, Assessment and Certification Authority (TACA)", region: "Australia", type: "State" },
+  { value: "aus-waca", label: "Western Australian Curriculum Authority (WACA)", region: "Australia", type: "State" },
+  { value: "can-ontario", label: "Ontario Secondary Schools", region: "Canada", type: "Provincial" },
+  { value: "can-bc", label: "British Columbia Secondary Schools", region: "Canada", type: "Provincial" },
+  { value: "can-alberta", label: "Alberta Secondary Schools", region: "Canada", type: "Provincial" },
+  { value: "france", label: "Ministère de l'Éducation Nationale (France)", region: "France", type: "National" },
+  { value: "germany", label: "Kultusministerkonferenz (KMK) - State Boards (Germany)", region: "Germany", type: "State" },
+  { value: "singapore", label: "Singapore Examinations and Assessment Board", region: "Singapore", type: "National" },
+  { value: "pakistan-fbise", label: "Federal Board of Intermediate and Secondary Education (FBISE)", region: "Pakistan", type: "National" },
+  { value: "pakistan-punjab", label: "Punjab Board of Education", region: "Pakistan", type: "Provincial" },
+  { value: "pakistan-sindh", label: "Sindh Board of Secondary Education", region: "Pakistan", type: "Provincial" },
+  { value: "china", label: "National Education Examinations Authority (China)", region: "China", type: "National" },
+  { value: "hong-kong", label: "Hong Kong Examinations and Assessment Authority", region: "Hong Kong", type: "National" },
+  { value: "japan", label: "Ministry of Education, Culture, Sports, Science and Technology (Japan)", region: "Japan", type: "National" },
+  { value: "south-korea", label: "Korean Educational Development Institute", region: "South Korea", type: "National" },
+  { value: "uae", label: "Ministry of Education (UAE)", region: "UAE/GCC", type: "National" },
+  { value: "south-africa", label: "South African National Senior Certificate", region: "South Africa", type: "National" },
+  { value: "other", label: "Other (Please specify in documents)", region: "Other", type: "Other" },
+];
+
+export const TWELFTH_BOARDS: SchoolBoard[] = [
+  // Indian National Boards (Priority 1)
+  { value: "cbse-12", label: "Central Board of Secondary Education (CBSE 12th)", region: "India", type: "National" },
+  { value: "isc-12", label: "Council for the Indian School Certificate Examination (ISC/12th)", region: "India", type: "National" },
+  { value: "nios-12", label: "National Institute of Open Schooling (NIOS 12th)", region: "India", type: "National" },
+  
+  // Indian State Boards (Priority 2)
+  { value: "andhra-pradesh-inter", label: "Andhra Pradesh Board of Intermediate Education", region: "India", type: "State" },
+  { value: "assam-hse", label: "Assam Higher Secondary Education Council", region: "India", type: "State" },
+  { value: "bihar-inter", label: "Bihar Intermediate Education Council", region: "India", type: "State" },
+  { value: "chhattisgarh-hse", label: "Chhattisgarh Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "goa-hse", label: "Goa Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "gujarat-hse", label: "Gujarat Higher Secondary Education Board", region: "India", type: "State" },
+  { value: "haryana-hse", label: "Haryana Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "himachal-hse", label: "Himachal Pradesh Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "jharkhand-inter", label: "Jharkhand Intermediate Education Council", region: "India", type: "State" },
+  { value: "karnataka-pue", label: "Karnataka Board of Pre-University Education", region: "India", type: "State" },
+  { value: "kerala-hse", label: "Higher Secondary Education Board, Kerala", region: "India", type: "State" },
+  { value: "madhya-pradesh-hse", label: "Madhya Pradesh Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "maharashtra-hse", label: "Maharashtra State Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "manipur-hse", label: "Council of Higher Secondary Education, Manipur", region: "India", type: "State" },
+  { value: "meghalaya-hse", label: "Meghalaya Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "mizoram-hse", label: "Mizoram Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "nagaland-hse", label: "Nagaland Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "odisha-hse", label: "Council of Higher Secondary Education, Odisha", region: "India", type: "State" },
+  { value: "punjab-hse", label: "Punjab School Education Board (Senior Secondary)", region: "India", type: "State" },
+  { value: "rajasthan-hse", label: "Rajasthan Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "tamil-nadu-hse", label: "Tamil Nadu Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "tripura-hse", label: "Tripura Board of Higher Secondary Education", region: "India", type: "State" },
+  { value: "uttar-pradesh-inter", label: "Uttar Pradesh Board of Intermediate Education", region: "India", type: "State" },
+  { value: "west-bengal-hse", label: "West Bengal Council of Higher Secondary Education", region: "India", type: "State" },
+  
+  // International Boards (Priority 3)
+  { value: "cambridge-alevels", label: "Cambridge Assessment International Education (CAIE/A-Levels)", region: "International", type: "International" },
+  { value: "ib-diploma", label: "International Baccalaureate (IB Diploma)", region: "International", type: "International" },
+  { value: "edexcel-alevels", label: "Edexcel (Pearson/A-Levels)", region: "International", type: "International" },
+  
+  // Other Countries (Priority 4)
+  { value: "uk-aqa-alevels", label: "AQA A-Levels (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-ocr-alevels", label: "OCR A-Levels (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-edexcel-alevels", label: "Pearson Edexcel A-Levels (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-wjec-alevels", label: "WJEC A-Levels (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "uk-ccea-alevels", label: "CCEA A-Levels (United Kingdom)", region: "United Kingdom", type: "National" },
+  { value: "usa-ap", label: "Advanced Placement (AP) Board", region: "USA", type: "National" },
+  { value: "usa-state-diplomas", label: "State-specific High School Diplomas", region: "USA", type: "State-level" },
+  { value: "aus-vcaa-vce", label: "Victorian Curriculum and Assessment Authority (VCAA/VCE)", region: "Australia", type: "State" },
+  { value: "aus-nesa-hsc", label: "NSW Education Standards Authority (NESA/HSC)", region: "Australia", type: "State" },
+  { value: "aus-qcaa-qce", label: "Queensland Curriculum and Assessment Authority (QCAA/QCE)", region: "Australia", type: "State" },
+  { value: "aus-saca-sace", label: "South Australian Curriculum Standards and Accreditation Authority (SACA/SACE)", region: "Australia", type: "State" },
+  { value: "aus-taca-tce", label: "Tasmanian Curriculum Assessment and Certification Authority (TACA/TCE)", region: "Australia", type: "State" },
+  { value: "aus-waca-wace", label: "Western Australian Curriculum Authority (WACA/WACE)", region: "Australia", type: "State" },
+  { value: "can-ontario-ossd", label: "Ontario Secondary School Diploma (OSSD)", region: "Canada", type: "Provincial" },
+  { value: "can-bc-grad", label: "British Columbia Graduation Diploma", region: "Canada", type: "Provincial" },
+  { value: "can-alberta-diploma", label: "Alberta High School Diploma", region: "Canada", type: "Provincial" },
+  { value: "france-bac", label: "Baccalaureate (Le Bac)", region: "France", type: "National" },
+  { value: "germany-abitur", label: "Abitur (Germany)", region: "Germany", type: "State" },
+  { value: "singapore-alevels", label: "Singapore Cambridge A-Levels / Singapore Polytechnic Diploma", region: "Singapore", type: "National" },
+  { value: "pakistan-fbise-inter", label: "Federal Board Intermediate Education Certificate (FBISE)", region: "Pakistan", type: "National" },
+  { value: "pakistan-punjab-inter", label: "Punjab Board of Intermediate Education", region: "Pakistan", type: "Provincial" },
+  { value: "pakistan-sindh-inter", label: "Sindh Board of Intermediate Education", region: "Pakistan", type: "Provincial" },
+  { value: "china-gaokao", label: "National College Entrance Examination (Gaokao)", region: "China", type: "National" },
+  { value: "hong-kong-hkdse", label: "Hong Kong Diploma of Secondary Education (HKDSE)", region: "Hong Kong", type: "National" },
+  { value: "japan-diploma", label: "High School Diploma / University Entrance Examinations (Japan)", region: "Japan", type: "National" },
+  { value: "south-korea-csat", label: "College Scholastic Ability Test (CSAT)", region: "South Korea", type: "National" },
+  { value: "uae-ministry", label: "UAE Ministry of Education / CBSE / CAIE in schools", region: "UAE/GCC", type: "National" },
+  { value: "south-africa-nsc", label: "National Senior Certificate (NSC)", region: "South Africa", type: "National" },
+  { value: "italy-maturita", label: "Esame di Maturità (Italy)", region: "Italy", type: "National" },
+  { value: "other", label: "Other (Please specify in documents)", region: "Other", type: "Other" },
+];

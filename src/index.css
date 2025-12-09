@@ -1,0 +1,344 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 147 99% 29%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 147 95% 38%;
+    --primary-lighter: 147 90% 50%;
+    --primary-dark: 147 100% 22%;
+    --primary-darker: 147 100% 16%;
+
+    --secondary: 147 80% 92%;
+    --secondary-foreground: 147 99% 29%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 147 80% 92%;
+    --accent-foreground: 147 99% 29%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 147 99% 29%;
+
+    --radius: 0.75rem;
+
+    /* Chart colors - green gradients from #019543 */
+    --chart-1: 147 99% 29%;
+    --chart-2: 147 95% 38%;
+    --chart-3: 147 90% 50%;
+    --chart-4: 147 85% 62%;
+    --chart-5: 147 80% 75%;
+
+    /* Glassmorphism colors */
+    --glass-background: 0 0% 100% / 0.7;
+    --glass-border: 147 99% 29% / 0.2;
+    --glass-shadow: 147 99% 29% / 0.1;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 210 40% 98%;
+
+    --card: 0 0% 0%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 0 0% 0%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 147 95% 38%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 147 90% 50%;
+    --primary-lighter: 147 85% 62%;
+    --primary-dark: 147 100% 22%;
+    --primary-darker: 147 100% 16%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 147 95% 38%;
+    
+    /* Chart colors - green gradients dark mode from #019543 */
+    --chart-1: 147 95% 38%;
+    --chart-2: 147 90% 45%;
+    --chart-3: 147 85% 55%;
+    --chart-4: 147 80% 65%;
+    --chart-5: 147 75% 75%;
+    
+    /* Glassmorphism colors - dark mode */
+    --glass-background: 0 0% 0% / 0.5;
+    --glass-border: 147 95% 38% / 0.2;
+    --glass-shadow: 0 0% 0% / 0.3;
+    
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 17px;
+    }
+  }
+
+  /* Typography defaults for better readability - Gen Z optimized */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+  }
+
+  h1 {
+    font-weight: 800;
+  }
+
+  h2 {
+    font-weight: 700;
+  }
+
+  p {
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+  }
+
+  strong, b {
+    font-weight: 600;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  /* Focus states for accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* Glassmorphism utilities */
+  .glass {
+    background: hsla(var(--glass-background));
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid hsla(var(--glass-border));
+    box-shadow: 0 8px 32px 0 hsla(var(--glass-shadow));
+  }
+  
+  .glass-card {
+    @apply glass rounded-xl;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .glass-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px 0 hsla(var(--glass-shadow)), 0 0 25px 0 hsla(var(--primary) / 0.2);
+    border-color: hsla(var(--primary) / 0.4);
+    background: linear-gradient(135deg, hsla(var(--glass-background)), hsla(var(--primary) / 0.05));
+  }
+  
+  .glass-button {
+    @apply glass rounded-lg px-4 py-2;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .glass-button:hover {
+    background: hsla(var(--primary) / 0.1);
+    border-color: hsla(var(--primary) / 0.4);
+  }
+
+  /* Highlight active tab with accent color */
+  [role="tablist"] [role="tab"][data-state="active"] {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+  }
+
+  /* Gen Z Micro-interactions */
+  .interactive-lift {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .interactive-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px 0 hsla(var(--primary) / 0.15);
+  }
+
+  .interactive-lift:active {
+    transform: translateY(0);
+  }
+
+  /* Smooth scale on hover */
+  .hover-scale {
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+
+  .hover-scale:active {
+    transform: scale(0.98);
+  }
+
+  /* Ripple effect container */
+  .ripple-container {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.1) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  @keyframes skeleton-pulse {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  /* Success animation */
+  @keyframes success-bounce {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
+  }
+
+  .success-bounce {
+    animation: success-bounce 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Smooth fade-in for content */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .fade-in-up {
+    animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Touch target optimization for mobile */
+  @media (max-width: 768px) {
+    button, a, [role="button"], [role="link"] {
+      min-height: 44px;
+      min-width: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  /* Visual grouping */
+  .grouped-actions {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: hsl(var(--muted) / 0.05);
+    border-radius: 8px;
+    border: 1px solid hsl(var(--border) / 0.1);
+  }
+
+  /* Better spacing rhythm (8px grid) */
+  .spacing-section {
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+
+  @media (max-width: 768px) {
+    .spacing-section {
+      padding: 24px 16px;
+      margin-bottom: 16px;
+    }
+  }
+
+  /* Content max-width for readability */
+  .content-container {
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
