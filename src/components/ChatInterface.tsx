@@ -1,37 +1,58 @@
+// src/components/ChatInterface.tsx
+/**
+ * Chat Interface Component - With Streaming Support (v6 - Fixed Message Display)
+ * 
+ * Fixes in v6:
+ * - Fixed user message disappearing after sending
+ * - Fixed welcome message staying visible after chatting
+ * - Prevented conversation ID change from wiping messages
+ */
+
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Sparkles, MapPin, Target } from "lucide-react";
+import { Send, Sparkles, MapPin, Target, RefreshCw, StopCircle, WifiOff } from "lucide-react";
 import bhAiLogo from "@/assets/bh-ai-logo.png";
 import { useToast } from "@/hooks/use-toast";
-import { getUserProfile } from "@/components/profile/UserProfileDialog";
 import { CareerCards } from "@/components/CareerCards";
 import { supabase } from "@/integrations/supabase/client";
 import { MarkdownMessage } from "@/components/chat/MarkdownMessage";
 import VoiceInterface from "@/components/chat/VoiceInterface";
-import { sendChatMessageToBackend } from "@/integrations/supabase/api";
+import { 
+  sendChatMessageStreaming,
+  sendChatMessageToBackend,
+  isStreamingSupported,
+  type RecommendedProgram,
+  ApiError 
+} from "@/integrations/supabase/api";
+import { StructuredResponse } from "@/components/chat/StructuredResponse";
+
+// =============================================================================
+// Types
+// =============================================================================
 
 type Message = {
   role: "user" | "assistant";
   content: string;
   timestamp?: string;
   careerData?: any;
-};
-
-// New: backend response type for structured /api/chat
-type BackendChatResponse = {
-  answer: string;
-  intent: string;
-  recommended_programs: any[];
+  intent?: string;
+  recommendedPrograms?: RecommendedProgram[];
   meta?: Record<string, any>;
+  isStreaming?: boolean;
+  isError?: boolean;
 };
 
 type ChatInterfaceProps = {
   conversationId: string | null;
   onConversationCreated: (id: string) => void;
 };
+
+// =============================================================================
+// Constants
+// =============================================================================
 
 const WELCOME_MESSAGE: Message = {
   role: "assistant",
@@ -46,7 +67,14 @@ const WELCOME_MESSAGE: Message = {
     hour: "2-digit",
     minute: "2-digit",
   }),
+  isStreaming: false,
 };
+
+const USE_STREAMING = isStreamingSupported();
+
+// =============================================================================
+// Component
+// =============================================================================
 
 export const ChatInterface = ({
   conversationId,
@@ -55,39 +83,51 @@ export const ChatInterface = ({
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<{ message: string; isNetwork: boolean } | null>(null);
   const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
-  const [currentConversationId, setCurrentConversationId] =
-    useState<string | null>(conversationId);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(conversationId);
   const [hasStartedChatting, setHasStartedChatting] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string>("");
+  
+  // Track if we're currently creating a conversation to prevent race conditions
+  const isCreatingConversationRef = useRef(false);
+  
+  // FIX: Track the last conversation ID we loaded to prevent unnecessary resets
+  const lastLoadedConversationIdRef = useRef<string | null>(null);
+  
+  // Refs for streaming state management
+  const streamingMessageIdRef = useRef<number>(0);
+  const pendingProgramsRef = useRef<RecommendedProgram[]>([]);
+  const pendingIntentRef = useRef<string>("generic");
+  const pendingMetaRef = useRef<Record<string, any> | undefined>(undefined);
 
-  // Auto-scroll when new messages come in (if user is near bottom)
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
   useEffect(() => {
     const viewport = scrollViewportRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]",
+      "[data-radix-scroll-area-viewport]"
     ) as HTMLElement;
     if (viewport && shouldAutoScroll) {
-      const isNearBottom =
-        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <
-        100;
-      if (isNearBottom || shouldAutoScroll) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
+      viewport.scrollTop = viewport.scrollHeight;
     }
-  }, [messages, isLoading, shouldAutoScroll]);
+  }, [messages, shouldAutoScroll]);
 
-  // Detect manual scrolling to disable auto-scroll when user scrolls up
   useEffect(() => {
     const viewport = scrollViewportRef.current?.querySelector(
-      "[data-radix-scroll-area-viewport]",
+      "[data-radix-scroll-area-viewport]"
     ) as HTMLElement;
     if (!viewport) return;
 
     const handleScroll = () => {
       const isNearBottom =
-        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <
-        100;
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 100;
       setShouldAutoScroll(isNearBottom);
     };
 
@@ -95,22 +135,38 @@ export const ChatInterface = ({
     return () => viewport.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Load conversation when conversationId changes
+  // FIX: Only load conversation when switching to a DIFFERENT existing conversation
+  // Don't reset when we just created a new conversation
   useEffect(() => {
-    if (conversationId) {
+    // If conversationId is null, reset to welcome (new chat)
+    if (conversationId === null) {
+      // Only reset if we're not in the middle of a chat
+      if (!hasStartedChatting) {
+        setMessages([WELCOME_MESSAGE]);
+        setCurrentConversationId(null);
+        lastLoadedConversationIdRef.current = null;
+      }
+      return;
+    }
+    
+    // If this is a new conversation we just created, don't reload
+    // (we already have the messages in state)
+    if (conversationId === currentConversationId) {
+      return;
+    }
+    
+    // If switching to a different existing conversation, load it
+    if (conversationId !== lastLoadedConversationIdRef.current) {
+      console.log("[ChatInterface] Loading different conversation:", conversationId);
       loadConversation(conversationId);
       setCurrentConversationId(conversationId);
       setHasStartedChatting(true);
-    } else {
-      setMessages([WELCOME_MESSAGE]);
-      setCurrentConversationId(null);
-      setHasStartedChatting(false);
+      lastLoadedConversationIdRef.current = conversationId;
     }
-  }, [conversationId]);
+  }, [conversationId]); // Removed hasStartedChatting and currentConversationId from deps
 
   const loadConversation = async (id: string) => {
     try {
-      console.log(`Loading conversation: ${id}`);
       const { data, error } = await supabase
         .from("messages")
         .select("*")
@@ -128,7 +184,6 @@ export const ChatInterface = ({
       }
 
       if (!data || data.length === 0) {
-        console.log("No messages found for this conversation");
         setMessages([WELCOME_MESSAGE]);
         return;
       }
@@ -141,18 +196,12 @@ export const ChatInterface = ({
           hour: "2-digit",
           minute: "2-digit",
         }),
+        isStreaming: false,
       }));
 
-      console.log(`Loaded ${loadedMessages.length} messages`);
       setMessages(loadedMessages);
     } catch (error) {
-      console.error("Unexpected error loading conversation:", error);
-      toast({
-        title: "Error",
-        description:
-          "An unexpected error occurred loading the conversation",
-        variant: "destructive",
-      });
+      console.error("Error loading conversation:", error);
     }
   };
 
@@ -164,48 +213,108 @@ export const ChatInterface = ({
         content: message.content,
         career_data: message.careerData || null,
       });
-
+      
       if (error) {
-        console.error("Error saving message:", error);
-        throw error;
+        console.error("Failed to save message:", error);
       }
     } catch (error) {
       console.error("Failed to save message:", error);
-      throw error;
     }
   };
 
-  const createConversation = async (firstMessage: string) => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    const title =
-      firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "");
-
-    const { data, error } = await supabase
-      .from("conversations")
-      .insert({
-        user_id: user.id,
-        title,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating conversation:", error);
-      return null;
+  // ==========================================================================
+  // Create conversation with better error handling and retry
+  // ==========================================================================
+  
+  const createConversation = async (firstMessage: string, retryCount = 0): Promise<string | null> => {
+    if (isCreatingConversationRef.current) {
+      console.log("[ChatInterface] Already creating conversation, waiting...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      if (currentConversationId) {
+        return currentConversationId;
+      }
     }
+    
+    isCreatingConversationRef.current = true;
+    
+    try {
+      console.log("[ChatInterface] Creating conversation...");
+      
+      let user = null;
+      for (let i = 0; i < 3; i++) {
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+        if (authUser) {
+          user = authUser;
+          break;
+        }
+        if (authError) {
+          console.error(`[ChatInterface] Auth error (attempt ${i + 1}):`, authError);
+        }
+        if (i < 2) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+      
+      if (!user) {
+        console.error("[ChatInterface] No authenticated user found after retries");
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to continue",
+          variant: "destructive",
+        });
+        return null;
+      }
 
-    return data.id;
+      const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "");
+
+      const { data, error } = await supabase
+        .from("conversations")
+        .insert({ user_id: user.id, title })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("[ChatInterface] Failed to create conversation:", error);
+        
+        if (retryCount < 1) {
+          console.log("[ChatInterface] Retrying conversation creation...");
+          isCreatingConversationRef.current = false;
+          return createConversation(firstMessage, retryCount + 1);
+        }
+        
+        return null;
+      }
+      
+      console.log("[ChatInterface] Conversation created:", data.id);
+      
+      // FIX: Update the ref so we don't try to reload this conversation
+      lastLoadedConversationIdRef.current = data.id;
+      
+      return data.id;
+      
+    } finally {
+      isCreatingConversationRef.current = false;
+    }
   };
+
+  const handleSaveProgram = useCallback((program: RecommendedProgram) => {
+    toast({
+      title: "Saved!",
+      description: `${program.college_name} added to your tracker`,
+    });
+  }, [toast]);
+
+  const handleCompareProgram = useCallback((program: RecommendedProgram) => {
+    toast({
+      title: "Added to compare",
+      description: `${program.college_name} added to comparison`,
+    });
+  }, [toast]);
 
   const handleVoiceMessage = useCallback(
     async (role: "user" | "assistant", content: string, careerData?: any) => {
       let convId = currentConversationId;
 
-      // Create conversation if needed
       if (!convId) {
         convId = await createConversation(content);
         if (!convId) return;
@@ -222,120 +331,358 @@ export const ChatInterface = ({
           hour: "2-digit",
           minute: "2-digit",
         }),
+        isStreaming: false,
       };
 
-      // Add message to UI
       setMessages((prev) => [...prev, newMessage]);
-
-      // Save to database
       await saveMessage(newMessage, convId);
     },
-    [currentConversationId, onConversationCreated],
+    [currentConversationId, onConversationCreated]
   );
 
+  // ==========================================================================
+  // Finalize Streaming Message
+  // ==========================================================================
+  
+  const finalizeStreamingMessage = useCallback((messageId: number) => {
+    console.log(`[ChatInterface] Finalizing message ${messageId}`);
+    
+    setMessages((prev) => {
+      return prev.map((msg, idx) => {
+        if (msg.role === "assistant" && msg.isStreaming) {
+          console.log(`[ChatInterface] Found streaming message at index ${idx}, finalizing with ${pendingProgramsRef.current.length} programs`);
+          return {
+            ...msg,
+            isStreaming: false,
+            intent: pendingIntentRef.current,
+            recommendedPrograms: [...pendingProgramsRef.current],
+            meta: pendingMetaRef.current,
+          };
+        }
+        return msg;
+      });
+    });
+    
+    streamingMessageIdRef.current = 0;
+    pendingProgramsRef.current = [];
+    pendingIntentRef.current = "generic";
+    pendingMetaRef.current = undefined;
+  }, []);
+
+  const handleStopStreaming = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setIsLoading(false);
+    finalizeStreamingMessage(streamingMessageIdRef.current);
+  }, [finalizeStreamingMessage]);
+
+  // ==========================================================================
+  // Helper: Check if error is network-related
+  // ==========================================================================
+  
+  const isNetworkError = (error: unknown): boolean => {
+    if (error instanceof TypeError) {
+      return error.message.includes('fetch') || 
+             error.message.includes('network') ||
+             error.message.includes('Failed to fetch');
+    }
+    if (error instanceof ApiError) {
+      return error.code === 'NETWORK_ERROR';
+    }
+    return false;
+  };
+
+  // ==========================================================================
+  // Send Message (Streaming)
+  // ==========================================================================
+  
+  const handleSendStreaming = async (userInput: string, convId: string) => {
+    abortControllerRef.current = new AbortController();
+    
+    pendingProgramsRef.current = [];
+    pendingIntentRef.current = "generic";
+    pendingMetaRef.current = undefined;
+    
+    const messageId = Date.now();
+    streamingMessageIdRef.current = messageId;
+    
+    const assistantMessage: Message = {
+      role: "assistant",
+      content: "",
+      timestamp: new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      isStreaming: true,
+      recommendedPrograms: undefined,
+      intent: undefined,
+    };
+    
+    setMessages((prev) => [...prev, assistantMessage]);
+    
+    let fullResponseText = "";
+    
+    try {
+      console.log("[ChatInterface] Starting streaming request...");
+      
+      await sendChatMessageStreaming(
+        userInput,
+        {
+          onToken: (token) => {
+            fullResponseText += token;
+            
+            setMessages((prev) => {
+              const updated = [...prev];
+              const lastIdx = updated.length - 1;
+              if (lastIdx >= 0 && updated[lastIdx].role === "assistant" && updated[lastIdx].isStreaming) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  content: updated[lastIdx].content + token,
+                };
+              }
+              return updated;
+            });
+          },
+          
+          onIntent: (intent) => {
+            console.log(`[ChatInterface] Received intent: ${intent}`);
+            pendingIntentRef.current = intent;
+          },
+          
+          onPrograms: (programs) => {
+            console.log(`[ChatInterface] Received ${programs.length} programs`);
+            pendingProgramsRef.current = programs;
+          },
+          
+          onMeta: (meta) => {
+            console.log(`[ChatInterface] Received meta`);
+            pendingMetaRef.current = meta;
+          },
+          
+          onDone: () => {
+            console.log(`[ChatInterface] Stream complete`);
+            finalizeStreamingMessage(messageId);
+            setError(null);
+            setLastFailedMessage("");
+          },
+          
+          onError: (errorMsg) => {
+            console.error(`[ChatInterface] Stream error: ${errorMsg}`);
+            setLastFailedMessage(userInput);
+            setError({ message: errorMsg, isNetwork: errorMsg.toLowerCase().includes('network') });
+            finalizeStreamingMessage(messageId);
+            toast({
+              title: "Error",
+              description: errorMsg,
+              variant: "destructive",
+            });
+          },
+        },
+        convId,
+        abortControllerRef.current.signal
+      );
+      
+      if (fullResponseText) {
+        await saveMessage({
+          role: "assistant",
+          content: fullResponseText,
+          recommendedPrograms: pendingProgramsRef.current,
+          intent: pendingIntentRef.current,
+          isStreaming: false,
+        }, convId);
+      }
+      
+    } catch (error) {
+      console.error("[ChatInterface] Streaming error:", error);
+      finalizeStreamingMessage(messageId);
+      
+      if (error instanceof ApiError && error.code !== "CANCELLED") {
+        const isNetwork = isNetworkError(error);
+        setLastFailedMessage(userInput);
+        setError({ 
+          message: isNetwork 
+            ? "Unable to connect. Please check your internet connection." 
+            : error.message,
+          isNetwork 
+        });
+      } else if (!(error instanceof ApiError)) {
+        const isNetwork = isNetworkError(error);
+        setLastFailedMessage(userInput);
+        setError({ 
+          message: isNetwork 
+            ? "Unable to connect. Please check your internet connection." 
+            : "Something went wrong. Please try again.",
+          isNetwork 
+        });
+      }
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleSendNonStreaming = async (userInput: string, convId: string) => {
+    abortControllerRef.current = new AbortController();
+    
+    try {
+      console.log("[ChatInterface] Starting non-streaming request...");
+      
+      const response = await sendChatMessageToBackend(
+        userInput,
+        convId,
+        { signal: abortControllerRef.current.signal }
+      );
+
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: response.answer,
+        timestamp: new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        intent: response.intent,
+        recommendedPrograms: response.recommended_programs,
+        meta: response.meta,
+        isStreaming: false,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+      await saveMessage(assistantMessage, convId);
+      
+      setError(null);
+      setLastFailedMessage("");
+
+    } catch (error) {
+      console.error("[ChatInterface] Non-streaming error:", error);
+      
+      const isNetwork = isNetworkError(error);
+      const errorMessage = error instanceof ApiError 
+        ? error.message 
+        : isNetwork 
+          ? "Unable to connect. Please check your internet connection."
+          : "Failed to get response. Please try again.";
+      
+      setLastFailedMessage(userInput);
+      setError({ message: errorMessage, isNetwork });
+      toast({
+        title: isNetwork ? "Connection Error" : "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  // ==========================================================================
+  // handleSend - FIX: Properly manages messages state
+  // ==========================================================================
+  
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    const userInput = input.trim();
+    
+    // FIX: Set hasStartedChatting FIRST to hide welcome cards
     setHasStartedChatting(true);
     setShouldAutoScroll(true);
+    setError(null);
+    setInput(""); // Clear input immediately for better UX
 
     const timestamp = new Date().toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
-    const userMessage: Message = { role: "user", content: input, timestamp };
+    const userMessage: Message = { role: "user", content: userInput, timestamp, isStreaming: false };
 
+    // FIX: If this is the first message, replace WELCOME_MESSAGE with user message
+    // Otherwise, append to existing messages
+    if (messages.length === 1 && messages[0] === WELCOME_MESSAGE) {
+      setMessages([userMessage]);
+    } else {
+      setMessages((prev) => [...prev, userMessage]);
+    }
+    
+    setIsLoading(true);
+
+    // Get or create conversation
     let convId = currentConversationId;
 
-    // Create conversation if needed
     if (!convId) {
-      convId = await createConversation(input);
+      console.log("[ChatInterface] No conversation ID, creating new conversation...");
+      convId = await createConversation(userInput);
+      
       if (!convId) {
-        toast({
-          title: "Error",
-          description: "Failed to create conversation",
-          variant: "destructive",
+        console.error("[ChatInterface] Failed to create conversation");
+        setIsLoading(false);
+        setError({ 
+          message: "Failed to start conversation. Please try again.", 
+          isNetwork: false 
         });
+        setLastFailedMessage(userInput);
+        setInput(userInput); // Put the message back in input
+        // Reset to welcome state on failure
+        setMessages([WELCOME_MESSAGE]);
+        setHasStartedChatting(false);
+        return;
+      }
+      
+      setCurrentConversationId(convId);
+      onConversationCreated(convId);
+    }
+
+    // Save user message
+    await saveMessage(userMessage, convId);
+
+    // Send to backend
+    if (USE_STREAMING) {
+      await handleSendStreaming(userInput, convId);
+    } else {
+      await handleSendNonStreaming(userInput, convId);
+    }
+  };
+
+  // ==========================================================================
+  // Retry Handler
+  // ==========================================================================
+  
+  const handleRetry = useCallback(async () => {
+    if (!lastFailedMessage || isLoading) return;
+    
+    console.log("[ChatInterface] Retrying last message:", lastFailedMessage);
+    
+    setError(null);
+    
+    // Remove the last assistant message if it exists (could be error or partial response)
+    setMessages((prev) => {
+      const lastMessage = prev[prev.length - 1];
+      if (lastMessage?.role === "assistant") {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
+    
+    setIsLoading(true);
+    setShouldAutoScroll(true);
+    
+    let convId = currentConversationId;
+    if (!convId) {
+      convId = await createConversation(lastFailedMessage);
+      if (!convId) {
+        setError({ message: "Failed to create conversation", isNetwork: false });
+        setIsLoading(false);
         return;
       }
       setCurrentConversationId(convId);
       onConversationCreated(convId);
     }
-
-    const userInput = input;
-    setInput("");
-
-    // Add user message to UI
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-
-    // Save user message to database
-    try {
-      await saveMessage(userMessage, convId);
-      console.log("User message saved successfully");
-    } catch (error) {
-      console.error("Failed to save user message:", error);
-      toast({
-        title: "Warning",
-        description: "Your message may not be saved. Continuing...",
-        variant: "destructive",
-      });
+    
+    if (USE_STREAMING) {
+      await handleSendStreaming(lastFailedMessage, convId);
+    } else {
+      await handleSendNonStreaming(lastFailedMessage, convId);
     }
-
-    // Call Python backend for AI response (non-streaming)
-    try {
-      // New: backend may return either a string or a structured object
-      const rawResponse =
-        (await sendChatMessageToBackend(
-          userInput,
-        )) as BackendChatResponse | string;
-
-      const answer =
-        typeof rawResponse === "string"
-          ? rawResponse
-          : rawResponse.answer ?? "";
-
-      const assistantTimestamp = new Date().toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: answer,
-        timestamp: assistantTimestamp,
-      };
-
-      // Show assistant message in UI
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      // Save assistant message to database
-      try {
-        await saveMessage(assistantMessage, convId);
-        console.log("Assistant message saved successfully");
-      } catch (saveError) {
-        console.error("Failed to save assistant message:", saveError);
-        toast({
-          title: "Warning",
-          description:
-            "AI response may not be saved to conversation history.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Error getting AI response from backend:", error);
-      toast({
-        title: "Connection Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to get response. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [lastFailedMessage, isLoading, currentConversationId, onConversationCreated]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -343,6 +690,10 @@ export const ChatInterface = ({
       handleSend();
     }
   };
+
+  // ==========================================================================
+  // Render
+  // ==========================================================================
 
   return (
     <div className="flex flex-col h-full max-w-5xl mx-auto">
@@ -361,21 +712,16 @@ export const ChatInterface = ({
         </p>
       </div>
 
-      {/* Feature Cards - Hidden when chatting starts */}
+      {/* Feature Cards - FIX: Only show when hasStartedChatting is false */}
       {!hasStartedChatting && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 px-4 mb-6">
           <Card className="p-6 text-center hover:shadow-lg transition-shadow">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <img
-                src={bhAiLogo}
-                alt="Bh.AI"
-                className="w-7 h-7 object-contain"
-              />
+              <img src={bhAiLogo} alt="Bh.AI" className="w-7 h-7 object-contain" />
             </div>
             <h3 className="font-semibold mb-2">Academic Help</h3>
             <p className="text-sm text-muted-foreground">
-              Get guidance on courses, professors, study tips, and academic
-              resources.
+              Get guidance on courses, professors, study tips, and academic resources.
             </p>
           </Card>
           <Card className="p-6 text-center hover:shadow-lg transition-shadow">
@@ -384,8 +730,7 @@ export const ChatInterface = ({
             </div>
             <h3 className="font-semibold mb-2">Campus Life</h3>
             <p className="text-sm text-muted-foreground">
-              Discover clubs, events, dining options, and social opportunities
-              on campus.
+              Discover clubs, events, dining options, and social opportunities.
             </p>
           </Card>
           <Card className="p-6 text-center hover:shadow-lg transition-shadow">
@@ -410,28 +755,36 @@ export const ChatInterface = ({
                   <img
                     src={bhAiLogo}
                     alt="Bh.AI"
-                    className="w-full h-full object-contain -translate-y-[10px]"
+                    className={`w-full h-full object-contain -translate-y-[10px] ${
+                      message.isStreaming === true ? "animate-pulse" : ""
+                    }`}
                   />
                 </div>
               )}
               <div
                 className={`flex-1 ${
-                  message.role === "user"
-                    ? "ml-auto max-w-[80%]"
-                    : "max-w-[80%]"
+                  message.role === "user" ? "ml-auto max-w-[80%]" : "max-w-[90%]"
                 }`}
               >
                 {message.role === "assistant" && (
                   <div className="text-sm font-medium text-primary mb-1">
                     Bh.ai
+                    {message.isStreaming === true && (
+                      <span className="ml-2 text-xs text-muted-foreground animate-pulse">
+                        typing...
+                      </span>
+                    )}
                   </div>
                 )}
-                {index === 0 && message.role === "assistant" && (
+                
+                {/* FIX: Only show "Welcome!" on the actual welcome message, not all first messages */}
+                {index === 0 && message.role === "assistant" && message.content === WELCOME_MESSAGE.content && (
                   <div className="flex items-center gap-1 text-sm font-medium mb-2">
                     <Sparkles className="w-4 h-4" />
                     <span>Welcome!</span>
                   </div>
                 )}
+
                 {message.role === "user" ? (
                   <Card className="bg-primary text-primary-foreground p-4 rounded-2xl">
                     <p className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -440,7 +793,23 @@ export const ChatInterface = ({
                   </Card>
                 ) : (
                   <>
-                    {message.careerData && message.careerData.careers ? (
+                    {message.isStreaming === true ? (
+                      <Card className="bg-card border-primary/10 p-5 rounded-2xl shadow-sm">
+                        <MarkdownMessage content={message.content || "Thinking..."} />
+                        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 align-middle" />
+                      </Card>
+                    ) : message.intent === "college_search" && 
+                         message.recommendedPrograms && 
+                         message.recommendedPrograms.length > 0 ? (
+                      <StructuredResponse
+                        answer={message.content}
+                        intent={message.intent}
+                        programs={message.recommendedPrograms}
+                        meta={message.meta}
+                        onSaveProgram={handleSaveProgram}
+                        onCompareProgram={handleCompareProgram}
+                      />
+                    ) : message.careerData && message.careerData.careers ? (
                       <>
                         <Card className="bg-card border-primary/10 p-5 rounded-2xl shadow-sm mb-4">
                           <MarkdownMessage content={message.content} />
@@ -454,7 +823,8 @@ export const ChatInterface = ({
                     )}
                   </>
                 )}
-                {message.timestamp && (
+
+                {message.timestamp && message.isStreaming !== true && (
                   <div className="text-xs text-muted-foreground mt-1">
                     {message.timestamp}
                   </div>
@@ -463,37 +833,42 @@ export const ChatInterface = ({
             </div>
           ))}
 
-          {/* Typing Indicator */}
-          {isLoading && (
+          {/* Error State with Retry Button */}
+          {error && !isLoading && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
-                <img
-                  src={bhAiLogo}
-                  alt="Bh.AI"
-                  className="w-full h-full object-contain animate-pulse -translate-y-[10px]"
-                />
-              </div>
-              <div className="flex-1 max-w-[80%]">
-                <div className="text-sm font-medium text-primary mb-1">
-                  Bh.ai
-                </div>
-                <Card className="bg-muted p-4">
-                  <div className="flex gap-1 items-center">
-                    <div
-                      className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                      style={{ animationDelay: "0ms" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                      style={{ animationDelay: "150ms" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                      style={{ animationDelay: "300ms" }}
-                    ></div>
+              <div className="w-8 h-8 flex-shrink-0" />
+              <Card className={`flex-1 max-w-[90%] p-4 ${
+                error.isNetwork 
+                  ? "bg-orange-500/10 border-orange-500/20" 
+                  : "bg-destructive/10 border-destructive/20"
+              }`}>
+                <div className="flex items-start gap-3">
+                  {error.isNetwork ? (
+                    <WifiOff className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <RefreshCw className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium mb-1 ${
+                      error.isNetwork ? "text-orange-600" : "text-destructive"
+                    }`}>
+                      {error.isNetwork ? "Connection Error" : "Something went wrong"}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {error.message}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRetry}
+                      className="gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Try Again
+                    </Button>
                   </div>
-                </Card>
-              </div>
+                </div>
+              </Card>
             </div>
           )}
         </div>
@@ -511,16 +886,31 @@ export const ChatInterface = ({
             className="min-h-[50px] max-h-[120px] resize-none"
           />
           <VoiceInterface onSaveMessage={handleVoiceMessage} />
-          <Button
-            onClick={handleSend}
-            disabled={isLoading || !input.trim()}
-            size="icon"
-            className="bg-primary hover:bg-primary/90 h-[50px] w-[50px]"
-          >
-            <Send className="h-5 w-5" />
-          </Button>
+          
+          {isLoading ? (
+            <Button
+              onClick={handleStopStreaming}
+              size="icon"
+              variant="destructive"
+              className="h-[50px] w-[50px]"
+              title="Stop generating"
+            >
+              <StopCircle className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              size="icon"
+              className="bg-primary hover:bg-primary/90 h-[50px] w-[50px]"
+            >
+              <Send className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </div>
     </div>
   );
 };
+
+export default ChatInterface;

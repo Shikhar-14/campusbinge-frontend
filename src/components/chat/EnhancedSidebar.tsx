@@ -54,11 +54,11 @@ export const EnhancedSidebar = ({
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
-  const [conversationsOpen, setConversationsOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const { open, setOpen } = useSidebar();
+  const [conversationsOpen, setConversationsOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -82,15 +82,28 @@ export const EnhancedSidebar = ({
     };
   }, []);
 
+  /**
+   * ✅ FIX: Changed from "profiles" to "student_profiles"
+   * The "profiles" table doesn't exist - we use "student_profiles" instead.
+   */
   const loadProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("student_profiles")  // ✅ FIXED: was "profiles"
+        .select("full_name, city, state")  // Only select fields we need for display
+        .eq("user_id", userId)
+        .maybeSingle();  // Use maybeSingle() to handle case where profile doesn't exist
 
-    if (data) {
-      setProfile(data);
+      if (error) {
+        console.warn("Error loading profile:", error);
+        return;
+      }
+
+      if (data) {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error("Unexpected error loading profile:", err);
     }
   };
 
@@ -162,6 +175,17 @@ export const EnhancedSidebar = ({
     { icon: User, label: "ONE-Profile", path: "/profile" },
     { icon: FileText, label: "Application Tracker", path: "/application-tracker" },
   ];
+
+  /**
+   * ✅ FIX: Updated to use full_name from student_profiles
+   * Previously used display_name from non-existent profiles table
+   */
+  const getDisplayName = () => {
+    if (profile?.full_name) {
+      return profile.full_name;
+    }
+    return user?.email || "User";
+  };
 
   return (
     <Sidebar 
@@ -325,14 +349,20 @@ export const EnhancedSidebar = ({
                 !open && "h-10 w-10",
                 open && "h-8 w-8"
               )}>
-                <AvatarImage src={profile?.avatar_url || ""} alt={user.email || ""} />
+                {/* Note: student_profiles doesn't have avatar_url, using fallback */}
+                <AvatarImage src="" alt={user.email || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user.email?.charAt(0).toUpperCase()}
+                  {(profile?.full_name || user.email)?.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               {open && (
                 <div className="flex-1 min-w-0 animate-fade-in">
-                  <p className="text-sm font-medium truncate">{profile?.display_name || user.email}</p>
+                  <p className="text-sm font-medium truncate">{getDisplayName()}</p>
+                  {profile?.city && profile?.state && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {profile.city}, {profile.state}
+                    </p>
+                  )}
                 </div>
               )}
             </div>

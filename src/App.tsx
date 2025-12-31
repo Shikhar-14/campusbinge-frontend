@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -5,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute"; // NEW: Import ProtectedRoute
 import Forum from "./pages/Forum";
 import AIAssistant from "./pages/AIAssistant";
 import Profile from "./pages/Profile";
@@ -14,6 +16,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import UserProfile from "./pages/UserProfile";
 import ModerationQueue from "./pages/ModerationQueue";
+import TestComponents from "@/pages/TestComponents";
 
 const queryClient = new QueryClient();
 
@@ -58,49 +61,77 @@ const App = () => {
   };
 
   return (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<AIAssistant />} />
-          <Route path="/forum/*" element={
-            <Layout>
-              <Forum />
-            </Layout>
-          } />
-          <Route path="/profile" element={
-            <Layout>
-              <Profile />
-            </Layout>
-          } />
-          <Route path="/application-tracker" element={
-            <Layout>
-              <ApplicationTracker />
-            </Layout>
-          } />
-          <Route path="/settings" element={
-            <Layout>
-              <Settings />
-            </Layout>
-          } />
-          <Route path="/user/:userId" element={
-            <Layout>
-              <UserProfile />
-            </Layout>
-          } />
-          <Route path="/moderation" element={
-            <Layout>
-              <ModerationQueue />
-            </Layout>
-          } />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/test-ui" element={<TestComponents />} />
+            
+            {/* Protected routes - wrapped with ProtectedRoute */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <AIAssistant />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/forum/*" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Forum />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Profile />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/application-tracker" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ApplicationTracker />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/user/:userId" element={
+              <ProtectedRoute>
+                <Layout>
+                  <UserProfile />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/moderation" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ModerationQueue />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            
+            {/* 404 - Public */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 

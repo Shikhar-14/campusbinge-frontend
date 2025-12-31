@@ -508,12 +508,58 @@ export const ForumHome = () => {
               <>
                 {/* Posts Feed Section */}
                 {loading ? (
-                  <div className="text-center py-8">Loading...</div>
+                  /* Improved: Skeleton loading instead of plain text */
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <Card key={i} className="p-4 animate-pulse">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1 space-y-3">
+                            {/* Header skeleton */}
+                            <div className="flex items-center gap-2">
+                              <div className="h-3 w-20 bg-muted rounded" />
+                              <div className="h-3 w-3 bg-muted rounded-full" />
+                              <div className="h-3 w-24 bg-muted rounded" />
+                              <div className="h-3 w-3 bg-muted rounded-full" />
+                              <div className="h-3 w-16 bg-muted rounded" />
+                            </div>
+                            {/* Title skeleton */}
+                            <div className="h-5 bg-muted rounded w-3/4" />
+                            {/* Content skeleton */}
+                            <div className="space-y-2">
+                              <div className="h-4 bg-muted rounded w-full" />
+                              <div className="h-4 bg-muted rounded w-2/3" />
+                            </div>
+                            {/* Actions skeleton */}
+                            <div className="flex gap-4 pt-2">
+                              <div className="h-8 w-20 bg-muted rounded" />
+                              <div className="h-8 w-16 bg-muted rounded" />
+                              <div className="h-8 w-16 bg-muted rounded" />
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
                 ) : filteredPosts.length === 0 ? (
-                  <Card className="p-8 text-center">
-                    <p className="text-muted-foreground">
-                      {searchQuery ? "No posts match your search" : "No posts yet"}
+                  /* Improved: Better empty state with icon and action */
+                  <Card className="p-12 text-center">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted/50 flex items-center justify-center">
+                      <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {searchQuery ? "No results found" : "No posts yet"}
+                    </h3>
+                    <p className="text-muted-foreground text-sm max-w-sm mx-auto mb-4">
+                      {searchQuery 
+                        ? `No posts match "${searchQuery}". Try a different search term.`
+                        : "Be the first to start a discussion in this community!"
+                      }
                     </p>
+                    {!searchQuery && (
+                      <CreatePostDialog onPostCreated={fetchData}>
+                        <Button>Create First Post</Button>
+                      </CreatePostDialog>
+                    )}
                   </Card>
                 ) : (
                   <div className="space-y-4">

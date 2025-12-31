@@ -40,6 +40,8 @@ export default function Auth() {
           return;
         }
         
+        // ✅ FIX: Clear old conversation when returning with existing session
+        localStorage.removeItem('lastConversationId');
         navigate("/");
       }
     };
@@ -47,11 +49,15 @@ export default function Auth() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
+        // ✅ FIX: Clear old conversation on any auth state change that results in a session
+        localStorage.removeItem('lastConversationId');
         navigate("/");
       }
       if (event === 'SIGNED_OUT') {
         localStorage.removeItem('authPreference');
         sessionStorage.removeItem('temporarySession');
+        // ✅ FIX: Also clear conversation on sign out for clean slate
+        localStorage.removeItem('lastConversationId');
       }
     });
 
@@ -179,6 +185,9 @@ export default function Auth() {
           sessionStorage.setItem('temporarySession', 'true');
         }
 
+        // ✅ FIX: Clear old conversation on successful login
+        localStorage.removeItem('lastConversationId');
+
         toast({
           title: "Success",
           description: "Logged in successfully!",
@@ -209,6 +218,9 @@ export default function Auth() {
           }
           return;
         }
+
+        // ✅ FIX: Clear old conversation on successful signup
+        localStorage.removeItem('lastConversationId');
 
         toast({
           title: "Success",
