@@ -1,11 +1,11 @@
 // src/components/ChatInterface.tsx
 /**
- * Chat Interface Component - With Streaming Support (v6 - Fixed Message Display)
+ * Chat Interface Component - With Streaming Support (v7 - Improved UI)
  * 
- * Fixes in v6:
- * - Fixed user message disappearing after sending
- * - Fixed welcome message staying visible after chatting
- * - Prevented conversation ID change from wiping messages
+ * Changes in v7:
+ * - Added ThinkingIndicator component for better loading UX
+ * - Improved streaming cursor styling
+ * - Better visual hierarchy
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -49,6 +49,26 @@ type ChatInterfaceProps = {
   conversationId: string | null;
   onConversationCreated: (id: string) => void;
 };
+
+// =============================================================================
+// Thinking Indicator Component (inline)
+// =============================================================================
+
+const ThinkingIndicator = () => (
+  <Card className="bg-card border-primary/10 p-5 rounded-2xl shadow-sm">
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+        <span className="text-sm text-muted-foreground">Generating response</span>
+      </div>
+      <span className="flex gap-1 ml-1">
+        <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
+        <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
+        <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" />
+      </span>
+    </div>
+  </Card>
+);
 
 // =============================================================================
 // Constants
@@ -769,7 +789,7 @@ export const ChatInterface = ({
                 {message.role === "assistant" && (
                   <div className="text-sm font-medium text-primary mb-1">
                     Bh.ai
-                    {message.isStreaming === true && (
+                    {message.isStreaming === true && message.content && (
                       <span className="ml-2 text-xs text-muted-foreground animate-pulse">
                         typing...
                       </span>
@@ -793,14 +813,30 @@ export const ChatInterface = ({
                   </Card>
                 ) : (
                   <>
+                    {/* 
+                      RENDERING LOGIC (v7):
+                      1. If streaming AND no content → Show ThinkingIndicator
+                      2. If streaming AND has content → Show text with cursor
+                      3. If complete AND has programs → Show StructuredResponse
+                      4. If complete AND has careers → Show CareerCards
+                      5. Otherwise → Show regular card
+                    */}
                     {message.isStreaming === true ? (
-                      <Card className="bg-card border-primary/10 p-5 rounded-2xl shadow-sm">
-                        <MarkdownMessage content={message.content || "Thinking..."} />
-                        <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-1 align-middle" />
-                      </Card>
+                      // STREAMING STATE
+                      message.content ? (
+                        // Has content - show streaming with cursor
+                        <Card className="bg-card border-primary/10 p-5 rounded-2xl shadow-sm">
+                          <MarkdownMessage content={message.content} />
+                          <span className="inline-block w-0.5 h-5 bg-primary ml-0.5 animate-pulse align-middle" />
+                        </Card>
+                      ) : (
+                        // No content yet - show thinking indicator
+                        <ThinkingIndicator />
+                      )
                     ) : message.intent === "college_search" && 
                          message.recommendedPrograms && 
                          message.recommendedPrograms.length > 0 ? (
+                      // COMPLETE with college cards
                       <StructuredResponse
                         answer={message.content}
                         intent={message.intent}
@@ -810,6 +846,7 @@ export const ChatInterface = ({
                         onCompareProgram={handleCompareProgram}
                       />
                     ) : message.careerData && message.careerData.careers ? (
+                      // Career cards
                       <>
                         <Card className="bg-card border-primary/10 p-5 rounded-2xl shadow-sm mb-4">
                           <MarkdownMessage content={message.content} />
@@ -817,6 +854,7 @@ export const ChatInterface = ({
                         <CareerCards careers={message.careerData.careers} />
                       </>
                     ) : (
+                      // Regular message (no cards)
                       <Card className="bg-card border-primary/10 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                         <MarkdownMessage content={message.content} />
                       </Card>

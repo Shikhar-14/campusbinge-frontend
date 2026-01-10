@@ -20,6 +20,7 @@ import { MediaPreview } from "./MediaPreview";
 import { MediaCarousel } from "./MediaCarousel";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { PostSkeleton } from "./PostSkeleton";
 
 type Community = {
   id: string;

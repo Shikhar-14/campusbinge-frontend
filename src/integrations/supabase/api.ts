@@ -270,11 +270,14 @@ export async function sendChatMessageStreaming(
           currentData = line.slice(6);
           
           // Process complete event
-          if (currentEvent && currentData) {
+          if (currentData) {
             try {
               const parsed = JSON.parse(currentData);
               
-              switch (currentEvent) {
+              // Use event type from SSE header, or fall back to parsed.type
+              const eventType = currentEvent || parsed.type || "unknown";
+              
+              switch (eventType) {
                 case "token":
                   if (parsed.content) {
                     fullResponse += parsed.content;
@@ -288,13 +291,18 @@ export async function sendChatMessageStreaming(
                   break;
                   
                 case "programs":
-                  programs = parsed;
-                  callbacks.onPrograms?.(parsed);
+                  // FIX: Extract programs array from the event object
+                  // Backend sends {"type": "programs", "programs": [...]}
+                  const programsArray = parsed.programs || parsed;
+                  programs = Array.isArray(programsArray) ? programsArray : [];
+                  console.log(`[api.ts] Received ${programs.length} programs`);
+                  callbacks.onPrograms?.(programs);
                   break;
                   
                 case "meta":
-                  meta = parsed;
-                  callbacks.onMeta?.(parsed);
+                  // FIX: Extract meta from event object
+                  meta = parsed.meta || parsed;
+                  callbacks.onMeta?.(meta);
                   break;
                   
                 case "done":
@@ -302,11 +310,14 @@ export async function sendChatMessageStreaming(
                   break;
                   
                 case "error":
-                  callbacks.onError?.(parsed.error);
+                  callbacks.onError?.(parsed.error || parsed.message || "Unknown error");
                   break;
+                  
+                default:
+                  console.log(`[api.ts] Unknown SSE event type: ${eventType}`, parsed);
               }
             } catch (e) {
-              console.warn("[api.ts] Failed to parse SSE data:", currentData);
+              console.warn("[api.ts] Failed to parse SSE data:", currentData, e);
             }
             
             currentEvent = "";

@@ -84,8 +84,15 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
         return;
       }
 
-      // Headings
-      if (line.startsWith('### ')) {
+      // Headings - check from most specific (####) to least specific (#)
+      if (line.startsWith('#### ')) {
+        flushList();
+        elements.push(
+          <h4 key={index} className="text-base font-semibold mt-5 mb-2 text-foreground flex items-center gap-2">
+            {parseInlineMarkdown(line.substring(5))}
+          </h4>
+        );
+      } else if (line.startsWith('### ')) {
         flushList();
         elements.push(
           <h3 key={index} className="text-lg font-semibold mt-6 mb-3 text-foreground">
@@ -107,28 +114,48 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
           </h1>
         );
       }
+      // Horizontal rule
+      else if (line.trim() === '---' || line.trim() === '***') {
+        flushList();
+        elements.push(
+          <hr key={index} className="my-6 border-border/50" />
+        );
+      }
+      // Blockquote
+      else if (line.trim().startsWith('> ')) {
+        flushList();
+        elements.push(
+          <blockquote key={index} className="border-l-4 border-primary/30 pl-4 py-1 my-4 text-foreground/80 italic">
+            {parseInlineMarkdown(line.trim().substring(2))}
+          </blockquote>
+        );
+      }
       // Lists - unordered
       else if (line.trim().match(/^[-*•]\s/)) {
-        orderedListItems = []; // Reset ordered list if we were building one
+        if (orderedListItems.length > 0) {
+          flushList(); // Flush ordered list if switching
+        }
         listItems.push(line.trim().substring(2));
       }
       // Numbered lists
       else if (line.trim().match(/^\d+\.\s/)) {
-        listItems = []; // Reset unordered list if we were building one
+        if (listItems.length > 0) {
+          flushList(); // Flush unordered list if switching
+        }
         orderedListItems.push(line.trim().replace(/^\d+\.\s/, ''));
       }
       // Empty line
       else if (line.trim() === '') {
         flushList();
         if (elements.length > 0 && elements[elements.length - 1].type !== 'div') {
-          elements.push(<div key={`space-${index}`} className="h-4" />);
+          elements.push(<div key={`space-${index}`} className="h-3" />);
         }
       }
       // Regular paragraph
       else {
         flushList();
         elements.push(
-          <p key={index} className="text-[15px] leading-7 text-foreground/90 mb-4">
+          <p key={index} className="text-[15px] leading-7 text-foreground/90 mb-3">
             {parseInlineMarkdown(line)}
           </p>
         );
@@ -203,7 +230,7 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
         currentText = currentText.substring(earliest.index + earliest.match[0].length);
       } else if (earliest.type === 'code' && earliest.match) {
         parts.push(
-          <code key={key++} className="bg-muted/40 px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground border border-border/30">
+          <code key={key++} className="bg-muted/50 px-1.5 py-0.5 rounded text-[13px] font-mono text-primary border border-border/30">
             {earliest.match[1]}
           </code>
         );
@@ -215,7 +242,7 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
             href={earliest.match[2]}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:underline underline-offset-2 transition-colors"
+            className="text-primary hover:underline underline-offset-2 transition-colors font-medium"
           >
             {earliest.match[1]}
           </a>
@@ -227,5 +254,11 @@ export const MarkdownMessage: React.FC<MarkdownMessageProps> = ({ content }) => 
     return parts;
   };
 
-  return <div className="space-y-1 font-sans antialiased">{parseMarkdown(content)}</div>;
+  return (
+    <div className="prose prose-sm max-w-none dark:prose-invert">
+      <div className="space-y-0.5 font-sans antialiased leading-relaxed">
+        {parseMarkdown(content)}
+      </div>
+    </div>
+  );
 };
